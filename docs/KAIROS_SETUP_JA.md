@@ -24,6 +24,29 @@ Mac で [V2 の構築手順](../official-addon/README.md)に従って拡張機�
 公式アプリの対応バージョン、Build、Runner UUID の検査は省略しない。
 通常の追加機能には眼鏡のファームウェア変更は不要である。
 
+ユーザーの iPhone に入っているアプリは **1.0.5（Build 201）** と確認済み。
+Mac で実際に組み込むには、これとは別に、利用権限のある未暗号化の `Payload/Runner.app` が必要になる。
+通常の App Store から取得した暗号化済み IPA をそのまま入力にはできない。
+Turbo IO の開発元は、1.0.5（Build 201）の[入力用 IPA を GitHub Release で案内している](https://github.com/Turbo1123/Turbo-IO/releases/tag/rayneo-ios-1.0.5-201)。
+配布ファイルは公式アプリのバイナリのコピーであり、Turbo IO のソースライセンスがこのバイナリの利用権を与えるわけではない。利用条件と入手元を自分で確認してから使用する。
+Release に記載されたファイル名は `RayNeo_AI_1.0.5_201_decrypted_original.ipa`、SHA-256 は `39d12aff8f2b312dc3b40ce784a444e52c536e61378434005255177548df966a`。
+Mac で取得したら `shasum -a 256 /path/to/RayNeo_AI_1.0.5_201_decrypted_original.ipa` で照合する。
+この版の入力は Bundle ID `com.rayneo.venus.pub`、Runner UUID `748fd301da603095a2449bd0558faca5` に一致する必要がある。
+バージョン表示だけを合わせた別のバイナリは使わない。
+
+この Linux 機で作成した最新の変更は、GitHub へ push できない場合でも `turbo-io-kairos-ios-android.patch` から取り込める。
+Mac では fork の `codex/ios-ja-first-pass` ブランチを clone し、パッチをコピーした上で、リポジトリのルートで `git am /path/to/turbo-io-kairos-ios-android.patch` を実行する。
+その後、完全な Xcode、Node.js 22.16 以上、Python 3 を用意し、次を実行する。
+
+```sh
+bash official-addon/test.sh
+bash official-addon/build.sh embedded
+```
+
+生成される `official-addon/build/embedded/TurboIOPrivateAddon.dylib` はまだインストールできるアプリではない。
+[公式アプリとの合成手順](../official-addon/README.md#2-只在本机生成自己的包)で、手元の `Runner.app`、自分の開発用証明書と provisioning profile、iPhone のデバイス ID を指定して IPA を生成する。
+入力アプリは上書きしない。既存の公式アプリを削除する前に、生成したアプリの起動と眼鏡接続を確認する。
+
 Turbo IO の「AI と会話 → API とキー」で Kairos の HTTPS URL、モデル名 `kairos`、iPhone 用トークンを入力する。
 「診断 → モデル API をテスト」で接続を確認し、「現在の回答方法」で独自モデルを選ぶ。
 公式アプリの会話データ形式が確認できるまで、独自モデルへの切り替えは保留される。
