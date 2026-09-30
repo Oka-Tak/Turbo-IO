@@ -13,6 +13,8 @@ int main(void) { @autoreleasepool {
     assert(![gate beginWaitingForToken:next atTime:200 delay:0]);assert([gate beginWaitingForToken:next atTime:200 delay:10]);
     [gate cancel];assert(![gate shouldExitForToken:next atTime:300]);assert(![gate beginWaitingForToken:gate.token atTime:300 delay:10]);
     for(NSString *s in @[@"退下吧",@"关闭",@"没事了。",@"关闭窗口！",@"小雷小雷，关闭窗口。",@" 结束对话 ",@"就这样吧"])assert(TIOIsVoiceExitCommand(s));
+    for(NSString *s in @[@"閉じて",@"会話を閉じて。",@"会話を終了！",@"もう大丈夫",@"これで終わり"])assert(TIOIsVoiceExitCommand(s));
+    for(NSString *s in @[@"閉じてと言ったらどうなる？",@"まだ会話を終了しないで",@"もう大丈夫ではありません"])assert(!TIOIsVoiceExitCommand(s));
     for(NSString *s in @[@"怎么关闭窗口",@"不要关闭窗口",@"帮我添加待办关闭窗口",@"他说没事了",@"等会再关闭",@"“关闭”是什么意思",@"",@"没事了但是我还有问题"])assert(!TIOIsVoiceExitCommand(s));
     assert([TIOAppendDelta(@"",@"私用模型测试 ABC123") isEqual:@"私用模型测试 ABC123"]);
     assert([TIOAppendDelta(@"",@"") isEqual:@""]);
@@ -33,7 +35,7 @@ int main(void) { @autoreleasepool {
     assert(TIOChatRequest(@"model",@"测试")); assert(!TIOChatRequest(@"",@"测试"));
     NSString *modelID=@"example-chat-model";
     NSString *prompt=TIOSystemPrompt(modelID);
-    assert(![prompt containsString:@"Turbo"]&&![prompt containsString:@"AI 产品专家和创业者"]&&[prompt containsString:modelID]);
+    assert(![prompt containsString:@"Turbo"]&&[prompt containsString:@"簡潔な日本語"]&&[prompt containsString:modelID]);
     assert([TIOSystemPrompt(@"another-model") containsString:@"another-model"]);
     TIOConversationHistory *history=[TIOConversationHistory new];
     for(NSUInteger i=0;i<30;i++)[history appendQuestion:[NSString stringWithFormat:@"问题%lu",(unsigned long)i] answer:[NSString stringWithFormat:@"回答%lu",(unsigned long)i]];

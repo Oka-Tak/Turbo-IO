@@ -26,7 +26,7 @@
 - (void)setLocalMode:(BOOL)localMode {
     NSAssert(NSThread.isMainThread,@"TTS mode belongs to the main queue");
     if(_localMode==localMode)return;
-    [self cancel];_localMode=localMode;self.state=localMode?@"本机待命":@"云端待命";
+    [self cancel];_localMode=localMode;self.state=localMode?@"iPhone 内の音声を待機中":@"クラウド音声を待機中";
 }
 - (void)setState:(NSString *)state {
     _state=[state copy];
@@ -38,7 +38,7 @@
 }
 - (instancetype)initWithKeyProvider:(NSString *(^)(void))keyProvider {
     if((self=[super init])){
-        _keyProvider=[keyProvider copy];_queue=[NSMutableArray new];_full=@"";_pending=@"";_state=@"待命";
+        _keyProvider=[keyProvider copy];_queue=[NSMutableArray new];_full=@"";_pending=@"";_state=@"待機中";
         NSURLSessionConfiguration *c=NSURLSessionConfiguration.ephemeralSessionConfiguration;
         c.timeoutIntervalForRequest=30;c.timeoutIntervalForResource=180;c.URLCache=nil;c.HTTPCookieStorage=nil;
         _session=[NSURLSession sessionWithConfiguration:c];
@@ -51,7 +51,7 @@
     self.localSynth.delegate=nil;[self.localSynth stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];self.localSynth=nil;self.localOutstanding=0;
     [self.queue removeAllObjects];self.full=@"";self.pending=@"";self.taskId=nil;
     self.segments=0;self.totalCharacters=0;self.scheduled=0;
-    self.ready=NO;self.finalRequested=NO;self.finishSent=NO;self.networkFinished=NO;self.state=@"待命";
+    self.ready=NO;self.finalRequested=NO;self.finishSent=NO;self.networkFinished=NO;self.state=@"待機中";
 }
 - (void)beginTurn {
 #if TIO_MUSIC
@@ -60,8 +60,8 @@
  [self cancel];}
 + (NSString *)audioRoute {
     for(AVAudioSessionPortDescription *out in AVAudioSession.sharedInstance.currentRoute.outputs)
-        if([out.portType isEqual:AVAudioSessionPortBluetoothA2DP]||[out.portType isEqual:AVAudioSessionPortBluetoothHFP])return @"蓝牙眼镜/耳机";
-    return @"未连接蓝牙音频输出";
+        if([out.portType isEqual:AVAudioSessionPortBluetoothA2DP]||[out.portType isEqual:AVAudioSessionPortBluetoothHFP])return @"Bluetooth の眼鏡またはイヤホン";
+    return @"Bluetooth 音声出力が未接続";
 }
 - (NSString *)status{return [NSString stringWithFormat:@"%@ · %@",self.state,TIOVoiceTTS.audioRoute];}
 - (void)appendFullText:(NSString *)text finished:(BOOL)finished {
@@ -69,7 +69,7 @@
     BOOL valid=[text isKindOfClass:NSString.class],prefix=valid&&(!self.full.length||[text hasPrefix:self.full]),wasFinal=self.finalRequested;
     NSUserDefaults *diag=[[NSUserDefaults alloc]initWithSuiteName:@"io.turboio.official-private-addon"];
     [diag setObject:@{@"textLength":@(text.length),@"fullLength":@(self.full.length),@"prefix":@(prefix),@"wasFinal":@(wasFinal)} forKey:@"ttsAppendEntry"];
-    if(!valid||!prefix||wasFinal){self.state=@"TTS 文本未追加";return;}
+    if(!valid||!prefix||wasFinal){self.state=@"読み上げ文を追加できませんでした";return;}
     NSString *newText=[text substringFromIndex:self.full.length];self.full=[text copy];
     if(newText.length){NSUInteger left=1800>self.totalCharacters?1800-self.totalCharacters:0;
         if(left){NSString *part=[newText substringToIndex:MIN(newText.length,left)];self.pending=[self.pending stringByAppendingString:part];self.totalCharacters+=part.length;}}
@@ -81,7 +81,7 @@
     [diag setObject:@{@"pendingLength":@(self.pending.length),@"queueCount":@(self.queue.count),@"segments":@(self.segments),@"used":@(used)} forKey:@"ttsAppendResult"];
     if(self.localMode){
         if(self.queue.count)[self speakLocalQueue];
-        else if(self.finalRequested&&!self.localOutstanding&&self.full.length)self.state=@"播放完成";
+        else if(self.finalRequested&&!self.localOutstanding&&self.full.length)self.state=@"再生完了";
         return;
     }
     if(!self.socket&&self.queue.count)[self startSocket];
@@ -90,25 +90,25 @@
 - (void)speakLocalQueue {
     if(!self.queue.count)return;
     NSError *activationError=nil;[AVAudioSession.sharedInstance setActive:YES error:&activationError];
-    if([TIOVoiceTTS.audioRoute isEqual:@"未连接蓝牙音频输出"]){self.state=@"眼镜音频未连接";[self.queue removeAllObjects];return;}
+    if([TIOVoiceTTS.audioRoute isEqual:@"Bluetooth 音声出力が未接続"]){self.state=@"眼鏡の音声が未接続";[self.queue removeAllObjects];return;}
     if(!self.localSynth){self.localSynth=[AVSpeechSynthesizer new];self.localSynth.delegate=self;
         self.localSynth.usesApplicationAudioSession=YES;}
     while(self.queue.count){NSString *part=self.queue.firstObject;[self.queue removeObjectAtIndex:0];
         AVSpeechUtterance *utterance=[[AVSpeechUtterance alloc]initWithString:part];
-        utterance.voice=[AVSpeechSynthesisVoice voiceWithLanguage:@"zh-CN"];
+        utterance.voice=[AVSpeechSynthesisVoice voiceWithLanguage:@"ja-JP"];
         utterance.rate=AVSpeechUtteranceDefaultSpeechRate;utterance.volume=1.0;
         self.localOutstanding++;[self.localSynth speakUtterance:utterance];}
-    self.state=@"本机正在朗读";
+    self.state=@"iPhone で読み上げ中";
 }
 - (void)speechSynthesizer:(AVSpeechSynthesizer *)synth didFinishSpeechUtterance:(AVSpeechUtterance *)utterance {
     if(synth!=self.localSynth)return;
     if(self.localOutstanding)self.localOutstanding--;
-    if(self.finalRequested&&!self.localOutstanding)self.state=@"播放完成";
+    if(self.finalRequested&&!self.localOutstanding)self.state=@"再生完了";
 }
 - (void)speechSynthesizer:(AVSpeechSynthesizer *)synth didCancelSpeechUtterance:(AVSpeechUtterance *)utterance {
     if(synth!=self.localSynth)return;
     if(self.localOutstanding)self.localOutstanding--;
-    if(!self.localOutstanding)self.state=@"本机朗读已中断";
+    if(!self.localOutstanding)self.state=@"iPhone の読み上げを中断しました";
 }
 - (NSDictionary *)event:(NSString *)action input:(NSDictionary *)input {
     return @{@"header":@{@"action":action,@"task_id":self.taskId?:@"",@"streaming":@"duplex"},

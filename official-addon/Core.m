@@ -27,7 +27,8 @@ BOOL TIOIsVoiceExitCommand(NSString *text) {
     if([s hasPrefix:@"小雷小雷"])s=[[s substringFromIndex:4] stringByTrimmingCharactersInSet:trim];
     s=[[s componentsSeparatedByCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] componentsJoinedByString:@""];
     // Exact utterances only. Never use containsString on task or chat content.
-    return [@[@"退下吧",@"退下",@"关闭",@"没事了",@"关闭窗口",@"关闭对话",@"结束对话",@"退出对话",@"不用了",@"就这样吧"] containsObject:s];
+    return [@[@"退下吧",@"退下",@"关闭",@"没事了",@"关闭窗口",@"关闭对话",@"结束对话",@"退出对话",@"不用了",@"就这样吧",
+              @"閉じて",@"会話を閉じて",@"会話を終了",@"対話を終了",@"もう大丈夫",@"これで終わり"] containsObject:s];
 }
 
 NSString *TIOAppendDelta(NSString *previous, NSString *current) {
@@ -48,7 +49,7 @@ NSURL *TIOValidateEndpoint(NSString *input) {
 }
 
 NSString *TIOSystemPrompt(NSString *model) {
-    return [NSString stringWithFormat:@"用简洁中文回答，内容将显示在智能眼镜上。\n你当前使用的模型名称（客户端配置的模型 ID）是：%@。当用户询问你的模型名称时，请准确说明这个模型 ID。\n结合请求中提供的最近历史对话保持上下文连贯；不要编造未提供的用户身份或聊天历史。\n%@",model,TIOProfilePrompt(TIOProfile())];
+    return [NSString stringWithFormat:@"簡潔な日本語で答えてください。回答はスマートグラスに表示されます。\n現在のモデル名（クライアントに設定されたモデル ID）は %@ です。モデル名を尋ねられたら、この ID を正確に伝えてください。\n渡された直近の会話履歴を踏まえて答え、与えられていないユーザー情報や会話履歴を作らないでください。\n%@",model,TIOProfilePrompt(TIOProfile())];
 }
 
 @implementation TIOConversationHistory {

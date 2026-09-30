@@ -282,7 +282,7 @@ static void AlwaysOnHook(id self,SEL cmd,id value) {
 @property(nonatomic) NSArray<NSDictionary *> *sections;
 @end
 @implementation TIOPanel
-- (void)viewDidLoad {[super viewDidLoad];self.page=self.page?:@"model";self.sections=TIOResearchSections(self.page);self.title=[@{@"model":@"模型与对话",@"library":@"资料与导出",@"diagnostics":@"诊断工具"} objectForKey:self.page];TIOStyleResearchTable(self);}
+- (void)viewDidLoad {[super viewDidLoad];self.page=self.page?:@"model";self.sections=TIOResearchSections(self.page);self.title=[@{@"model":@"AIと会話",@"library":@"データと書き出し",@"diagnostics":@"診断ツール"} objectForKey:self.page];TIOStyleResearchTable(self);}
 - (void)viewWillAppear:(BOOL)animated{[super viewWillAppear:animated];[self.tableView reloadData];}
 - (void)viewDidAppear:(BOOL)animated{[super viewDidAppear:animated];[NSNotificationCenter.defaultCenter removeObserver:self name:@"TIOResearchClosed" object:nil];[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(cancelPanelTest) name:@"TIOResearchClosed" object:nil];}
 - (void)cancelPanelTest{[_testRequest cancel];_testRequest=nil;}
@@ -292,91 +292,91 @@ static void AlwaysOnHook(id self,SEL cmd,id value) {
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{return [self.sections[section][@"rows"] count];}
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section{return self.sections[section][@"title"];}
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    if(section==0&&[self.page isEqual:@"model"])return [TIOSelectedAgent() isEqual:@"Codex"]?@"Codex · 只读知识库查询，连接状态见知识库。":@"当前 Agent 未连接执行器；切换选择不会自动发起任务。";
-    if(section==0)return [@{@"model":@"TURBO IO · 选择回答方式，管理自己的模型与搜索服务。",@"library":@"音频、转写集中管理；分享只创建副本，不删除原件。",@"diagnostics":@"手动测试与协议状态，不与日常操作混放。"} objectForKey:self.page];
+    if(section==0&&[self.page isEqual:@"model"])return [TIOSelectedAgent() isEqual:@"Codex"]?@"Codex が知識ベースを読み取り専用で検索します。接続状態は知識ベースで確認できます。":@"選択中のエージェントには実行機能がありません。選択してもタスクは始まりません。";
+    if(section==0)return [@{@"model":@"TURBO IO · 回答方法、独自モデル、検索サービスを設定します。",@"library":@"音声と文字起こしを管理します。共有時はコピーを作り、元のファイルは残します。",@"diagnostics":@"手動テストと通信状態を確認します。"} objectForKey:self.page];
     if(section!=self.sections.count-1)return nil;
-    if([self.page isEqual:@"model"])return @"官方 ASR 保留，语音仍可能经过官方云。回答默认由 iOS 本机朗读；可选择自行配置阿里 Flash 云端朗读。仅在眼镜蓝牙音频输出已连接时播放。历史仅保留本次进程最近50条成功消息。";
-    if([self.page isEqual:@"library"])return @"保存需明确开启，不会启动录音或自动上传。智记只包含开启后保存的内容，不是官方历史全量导出。";
-    return @"测试需要手动触发，可能调用已配置的服务。接口成功不等于眼镜显示成功。关闭研究只关闭界面，不改变正在运行的功能。";
+    if([self.page isEqual:@"model"])return @"公式の音声認識を使うため、音声は公式クラウドを経由する場合があります。回答の読み上げは初期状態でiOS端末内の音声を使います。会話履歴はこのアプリの実行中に成功した直近50件だけ保持します。";
+    if([self.page isEqual:@"library"])return @"保存は明示的に有効にした場合だけ行います。録音や自動アップロードは始まりません。ライフログの保存対象は有効化後の内容だけです。";
+    return @"テストは手動で実行します。設定済みのサービスへ接続する場合があります。APIの成功は眼鏡への表示成功を意味しません。";
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)ip {
     NSDictionary *r=self.sections[ip.section][@"rows"][ip.row];NSInteger section=[r[@"section"] integerValue],row=[r[@"row"] integerValue];
     UITableViewCell *c=section>=0?[self legacyCell:tableView at:[NSIndexPath indexPathForRow:row inSection:section]]:[[UITableViewCell alloc]initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
     c.textLabel.text=r[@"title"];c.textLabel.numberOfLines=0;c.textLabel.font=[UIFont preferredFontForTextStyle:UIFontTextStyleBody];c.textLabel.adjustsFontForContentSizeCategory=YES;c.detailTextLabel.font=[UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];c.detailTextLabel.adjustsFontForContentSizeCategory=YES;c.detailTextLabel.numberOfLines=0;c.detailTextLabel.textColor=UIColor.secondaryLabelColor;c.imageView.image=[UIImage systemImageNamed:r[@"icon"]];c.imageView.tintColor=UIColor.systemIndigoColor;
     c.accessibilityIdentifier=[@"research-" stringByAppendingString:r[@"key"]];c.contentView.directionalLayoutMargins=NSDirectionalEdgeInsetsMake(15,16,15,16);
-    if([r[@"key"] isEqual:@"agent"]){__weak typeof(self) weak=self;c.accessoryView=TIOAgentPicker(^{[weak.tableView reloadData];});c.detailTextLabel.text=[TIOSelectedAgent() isEqual:@"Codex"]?@"Mac · 自有知识库":@"未连接执行器";}
-    if([r[@"key"] isEqual:@"knowledge"])c.detailTextLabel.text=@"微信归档 · 项目文档 · 学习资料";
-    if([r[@"key"] isEqual:@"tts"]){c.detailTextLabel.text=@"官方/自有回答 · 眼镜蓝牙音频";
+    if([r[@"key"] isEqual:@"agent"]){__weak typeof(self) weak=self;c.accessoryView=TIOAgentPicker(^{[weak.tableView reloadData];});c.detailTextLabel.text=[TIOSelectedAgent() isEqual:@"Codex"]?@"Mac・独自の知識ベース":@"実行機能は未接続";}
+    if([r[@"key"] isEqual:@"knowledge"])c.detailTextLabel.text=@"アーカイブ・プロジェクト文書・学習資料";
+    if([r[@"key"] isEqual:@"tts"]){c.detailTextLabel.text=@"公式/独自モデルの回答・眼鏡のBluetooth音声";
         UISwitch *s=[UISwitch new];s.on=[Prefs boolForKey:@"ttsEnabled"];[s addTarget:self action:@selector(ttsToggle:) forControlEvents:UIControlEventValueChanged];c.accessoryView=s;}
-    if([r[@"key"] isEqual:@"ttsEngine"])c.detailTextLabel.text=[[Prefs stringForKey:@"ttsEngine"] isEqual:@"local"]?@"iOS 本机语音 · 无需 Key · 默认":@"阿里 qwen-audio-3.1-tts-flash · 云端";
-    if([r[@"key"] isEqual:@"ttsKey"])c.detailTextLabel.text=ReadKey(TIOVoiceTTSService()).length?@"已存手机 Keychain，不回显":@"仅云端模式需要 Endpoint 和 Key";
-    if([r[@"key"] isEqual:@"ttsTest"]){c.detailTextLabel.text=[NSString stringWithFormat:@"固定短句 · %@",VoiceTTS.status?:@"待命"];
-        UIButton *button=[UIButton buttonWithType:UIButtonTypeSystem];[button setTitle:@"播放" forState:UIControlStateNormal];
+    if([r[@"key"] isEqual:@"ttsEngine"])c.detailTextLabel.text=[[Prefs stringForKey:@"ttsEngine"] isEqual:@"local"]?@"iOS端末内の音声・キー不要・初期設定":@"Ali qwen-audio-3.1-tts-flash・クラウド";
+    if([r[@"key"] isEqual:@"ttsKey"])c.detailTextLabel.text=ReadKey(TIOVoiceTTSService()).length?@"端末のキーチェーンに保存済み":@"クラウド利用時のみ接続先とキーが必要";
+    if([r[@"key"] isEqual:@"ttsTest"]){c.detailTextLabel.text=[NSString stringWithFormat:@"テスト用の短文・%@",VoiceTTS.status?:@"待機中"];
+        UIButton *button=[UIButton buttonWithType:UIButtonTypeSystem];[button setTitle:@"再生" forState:UIControlStateNormal];
         button.accessibilityIdentifier=@"research-tts-play-button";button.frame=CGRectMake(0,0,58,44);
         [button addTarget:self action:@selector(testTTS) forControlEvents:UIControlEventTouchUpInside];c.accessoryView=button;}
     if(!c.accessoryView)c.accessoryType=UITableViewCellAccessoryDisclosureIndicator;
     if([r[@"key"] isEqual:@"mode"]){c.detailTextLabel.font=[UIFont preferredFontForTextStyle:UIFontTextStyleTitle3];c.detailTextLabel.textColor=UIColor.labelColor;}
-    if([r[@"key"] isEqual:@"history"])c.detailTextLabel.text=[c.detailTextLabel.text stringByAppendingString:@" · 点此管理清空"];
-    if(section==-1)c.detailTextLabel.text=@[@"本机音频 / TXT / Markdown · AirDrop与文件",@"导入或粘贴转写，确认后交给自有模型",@"导出 Markdown 或整理已保存文字",@"明确开启保存后，查看与分享音频副本"][row];
-    if([r[@"key"] isEqual:@"navigation"])c.detailTextLabel.text=@"高德搜索 / 地图选点 / 步行模拟 → 眼镜常亮文字；需自备iOS Key";
-    if([r[@"key"] isEqual:@"archive"])c.detailTextLabel.text=@"一次导出 Markdown 与 JSON";
-    if([r[@"key"] isEqual:@"capture"])c.detailTextLabel.text=@"只保存之后的智记文字，不启动麦克风";
+    if([r[@"key"] isEqual:@"history"])c.detailTextLabel.text=[c.detailTextLabel.text stringByAppendingString:@"・タップして消去を管理"];
+    if(section==-1)c.detailTextLabel.text=@[@"端末内の音声/TXT/MarkdownをAirDropやファイルで共有",@"文字起こしを入力し、確認してから独自モデルへ送信",@"Markdownの書き出しと保存済みテキストの整理",@"保存を有効にして音声のコピーを表示・共有"][row];
+    if([r[@"key"] isEqual:@"navigation"])c.detailTextLabel.text=@"Amapの検索・地点選択・徒歩シミュレーションを眼鏡へ表示。iOS用キーが必要";
+    if([r[@"key"] isEqual:@"archive"])c.detailTextLabel.text=@"MarkdownとJSONを書き出します";
+    if([r[@"key"] isEqual:@"capture"])c.detailTextLabel.text=@"今後のライフログのテキストのみ保存します。録音は始まりません";
     if([r[@"key"] isEqual:@"status"])c.accessoryType=UITableViewCellAccessoryNone;
     return c;
 }
 - (UITableViewCell *)legacyCell:(UITableView *)tableView at:(NSIndexPath *)ip {
     UITableViewCell *c=[[UITableViewCell alloc]initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];c.detailTextLabel.numberOfLines=0;
     if(ip.section==0){
-        c.textLabel.text=@[@"选择回答模型",@"配置自有 API",@"测试 API（合成问题）",@"DeepSeek：关闭思考扩展参数",@"对话历史（点此清空）",@"查看系统提示词",@"语音退出指令",@"联网搜索 · TinyFish",@"配置 TinyFish Key",@"测试联网搜索（公开问题）",@"待办协议验收",@"模型 Tools",@"AI 新闻订阅"][ip.row];
-        if(ip.row==12)c.detailTextLabel.text=@"默认AI · TinyFish · 提词器匀速阅读 · 不启动录音";
-        if(ip.row==11)c.detailTextLabel.text=TIOKnowledgeEnabled()?@"knowledge_query · knowledge_query_status · create_todo · web_search":@"create_todo · web_search · 知识库工具需开启";
-        if(ip.row==0){NSInteger m=[Prefs integerForKey:@"mode"];c.detailTextLabel.text=@[@"官方默认",@"随机字符串验收",@"自定义 OpenAI 兼容接口"][MAX(0,MIN(m,2))];}
-        if(ip.row==1)c.detailTextLabel.text=[Prefs stringForKey:@"model"]?:@"尚未配置，未内置任何 Key";
+        c.textLabel.text=@[@"回答モデルを選択",@"独自 API を設定",@"API をテスト（合成された質問）",@"DeepSeek：思考用の追加パラメータを無効化",@"会話履歴（タップして消去）",@"システムプロンプトを表示",@"音声で会話を終了",@"ウェブ検索 · TinyFish",@"TinyFish のキーを設定",@"ウェブ検索をテスト（公開情報）",@"ToDo 連携を確認",@"モデルのツール",@"AI ニュース購読"][ip.row];
+        if(ip.row==12)c.detailTextLabel.text=@"標準 AI · TinyFish · 一定速度の字幕表示 · 録音は開始しません";
+        if(ip.row==11)c.detailTextLabel.text=TIOKnowledgeEnabled()?@"knowledge_query · knowledge_query_status · create_todo · web_search":@"create_todo · web_search · 知識ベースは有効化が必要";
+        if(ip.row==0){NSInteger m=[Prefs integerForKey:@"mode"];c.detailTextLabel.text=@[@"公式の回答",@"ランダム文字列で検証",@"独自の OpenAI 互換 API"][MAX(0,MIN(m,2))];}
+        if(ip.row==1)c.detailTextLabel.text=[Prefs stringForKey:@"model"]?:@"未設定。API キーは同梱されません";
         if(ip.row==3){UISwitch *s=[UISwitch new];s.on=[Prefs boolForKey:@"deepseekDisableThinking"];[s addTarget:self action:@selector(thinking:) forControlEvents:UIControlEventValueChanged];c.accessoryView=s;}
-        if(ip.row==4)c.detailTextLabel.text=[NSString stringWithFormat:@"%lu / 50 条 · 当前进程内存 · 只含成功问答",(unsigned long)[Controller.history snapshot].count];
-        if(ip.row==5)c.detailTextLabel.text=[TIOProfilePrompt(TIOProfile()) length]?@"已自定义 · 下一次自有模型对话生效":@"未设置身份 · 点击编辑称呼、背景和偏好";
-        if(ip.row==6){c.detailTextLabel.text=VoiceExitReady?@"退下吧 / 关闭 / 没事了 / 关闭窗口；完整短句匹配":@"当前版本停止入口未通过校验，未启用";UISwitch *s=[UISwitch new];s.on=[Prefs boolForKey:@"voiceExitCommands"];s.enabled=VoiceExitReady;[s addTarget:self action:@selector(voiceExit:) forControlEvents:UIControlEventValueChanged];c.accessoryView=s;}
-        if(ip.row==7){c.detailTextLabel.text=@"模型按需调用 · 只读公开网页 · 最多两次";UISwitch *s=[UISwitch new];s.on=[Prefs boolForKey:@"tinyfishEnabled"];[s addTarget:self action:@selector(searchToggle:) forControlEvents:UIControlEventValueChanged];c.accessoryView=s;}
-        if(ip.row==8)c.detailTextLabel.text=ReadKey(@"https://api.search.tinyfish.ai").length?@"已存手机 Keychain，不回显":@"未配置；不会使用 Mac 凭据";
-        if(ip.row==9)c.detailTextLabel.text=@"不携带聊天历史 · 显示实际搜索次数";
-    }else if(ip.section==1){c.textLabel.text=ip.row==0?@"旁路保存最终文字":@"导出 Markdown / JSON";if(ip.row==0){UISwitch *s=[UISwitch new];s.on=[Prefs boolForKey:@"captureFinalText"];[s addTarget:self action:@selector(capture:) forControlEvents:UIControlEventValueChanged];c.accessoryView=s;}}
-    else{c.textLabel.text=HooksReady?@"回调签名检查通过":@"未启用：版本或回调不匹配";c.detailTextLabel.text=[Diagnostic stringByAppendingFormat:@"\n官方完成回调：%lu；语音退出入口：%@",(unsigned long)CompletionEvents,VoiceExitReady?@"已校验":@"不可用"];}
+        if(ip.row==4)c.detailTextLabel.text=[NSString stringWithFormat:@"%lu / 50 件 · 実行中のメモリのみ · 成功した問答だけ",(unsigned long)[Controller.history snapshot].count];
+        if(ip.row==5)c.detailTextLabel.text=[TIOProfilePrompt(TIOProfile()) length]?@"設定済み · 次の独自モデルとの会話から適用":@"未設定 · 呼び名や背景、好みを編集";
+        if(ip.row==6){c.detailTextLabel.text=VoiceExitReady?@"閉じて / 会話を終了 / もう大丈夫；短い発話の完全一致":@"このバージョンでは終了処理を検証できず、無効です";UISwitch *s=[UISwitch new];s.on=[Prefs boolForKey:@"voiceExitCommands"];s.enabled=VoiceExitReady;[s addTarget:self action:@selector(voiceExit:) forControlEvents:UIControlEventValueChanged];c.accessoryView=s;}
+        if(ip.row==7){c.detailTextLabel.text=@"モデルが必要に応じて呼び出し · 公開ウェブを読み取りのみ · 最大2回";UISwitch *s=[UISwitch new];s.on=[Prefs boolForKey:@"tinyfishEnabled"];[s addTarget:self action:@selector(searchToggle:) forControlEvents:UIControlEventValueChanged];c.accessoryView=s;}
+        if(ip.row==8)c.detailTextLabel.text=ReadKey(@"https://api.search.tinyfish.ai").length?@"iPhone のキーチェーンに保存済み・再表示不可":@"未設定。Mac の認証情報は使用しません";
+        if(ip.row==9)c.detailTextLabel.text=@"会話履歴は送信せず、実際の検索回数を表示します";
+    }else if(ip.section==1){c.textLabel.text=ip.row==0?@"認識後のテキストを別途保存":@"Markdown / JSON を書き出す";if(ip.row==0){UISwitch *s=[UISwitch new];s.on=[Prefs boolForKey:@"captureFinalText"];[s addTarget:self action:@selector(capture:) forControlEvents:UIControlEventValueChanged];c.accessoryView=s;}}
+    else{c.textLabel.text=HooksReady?@"コールバックの署名を確認済み":@"無効：バージョンまたはコールバックが不一致";c.detailTextLabel.text=[Diagnostic stringByAppendingFormat:@"\n公式アプリの完了通知：%lu；音声終了処理：%@",(unsigned long)CompletionEvents,VoiceExitReady?@"確認済み":@"使用不可"];}
     return c;
 }
 - (void)thinking:(UISwitch *)sender {[Prefs setBool:sender.on forKey:@"deepseekDisableThinking"];}
 - (void)ttsToggle:(UISwitch *)sender {
-    if(sender.on&&![[Prefs stringForKey:@"ttsEngine"] isEqual:@"local"]&&!ReadKey(TIOVoiceTTSService()).length){sender.on=NO;Alert(@"请先配置云端 TTS",@"阿里 Flash 模式需要 API Key；本机朗读不需要。 ");return;}
+    if(sender.on&&![[Prefs stringForKey:@"ttsEngine"] isEqual:@"local"]&&!ReadKey(TIOVoiceTTSService()).length){sender.on=NO;Alert(@"クラウド音声を設定してください",@"Ali Flash の利用には API キーが必要です。iPhone 内の読み上げには不要です。");return;}
     [Prefs setBool:sender.on forKey:@"ttsEnabled"];if(!sender.on)[VoiceTTS cancel];
     [self.tableView reloadData];
 }
 - (void)configureTTSEngine {
-    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"回答朗读引擎" message:@"只朗读聊天回答。默认使用 iOS 本机语音，不需要 Key；阿里 Flash 是可选实验模式。" preferredStyle:UIAlertControllerStyleActionSheet];
-    [a addAction:[UIAlertAction actionWithTitle:@"本机朗读 · 默认，无需 Key" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){[Prefs setObject:@"local" forKey:@"ttsEngine"];[Prefs setBool:YES forKey:@"ttsEnabled"];VoiceTTS.localMode=YES;[self.tableView reloadData];}]];
-    [a addAction:[UIAlertAction actionWithTitle:@"阿里 Flash · 云端流式" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){
-        if(!ReadKey(TIOVoiceTTSService()).length){Alert(@"未配置云端 Key",@"请先进入“阿里 Flash TTS 配置”，或继续使用本机朗读。");return;}
+    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"回答の読み上げ" message:@"会話の回答だけを読み上げます。初期設定はキー不要の iPhone 内音声です。Ali Flash は任意の実験機能です。" preferredStyle:UIAlertControllerStyleActionSheet];
+    [a addAction:[UIAlertAction actionWithTitle:@"iPhone 内で読み上げ · 初期設定・キー不要" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){[Prefs setObject:@"local" forKey:@"ttsEngine"];[Prefs setBool:YES forKey:@"ttsEnabled"];VoiceTTS.localMode=YES;[self.tableView reloadData];}]];
+    [a addAction:[UIAlertAction actionWithTitle:@"Ali Flash · クラウド音声" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){
+        if(!ReadKey(TIOVoiceTTSService()).length){Alert(@"クラウドのキーが未設定です",@"先に Ali Flash TTS を設定するか、iPhone 内の読み上げを利用してください。");return;}
         [Prefs setObject:@"cloud" forKey:@"ttsEngine"];[Prefs setBool:YES forKey:@"ttsEnabled"];VoiceTTS.localMode=NO;[self.tableView reloadData];}]];
-    [a addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    [a addAction:[UIAlertAction actionWithTitle:@"キャンセル" style:UIAlertActionStyleCancel handler:nil]];
     a.popoverPresentationController.sourceView=self.view;a.popoverPresentationController.sourceRect=CGRectMake(self.view.bounds.size.width/2,100,1,1);
     [self presentViewController:a animated:YES completion:nil];
 }
 - (void)configureTTS {
-    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"阿里 Flash TTS" message:@"云端可选。填官方 WebSocket Endpoint 和自己的 Key；Key 只存手机钥匙串，不回显、不写进源码或安装包。留空 Key 保留该地址现有配置。" preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"Ali Flash TTS" message:@"任意のクラウド機能です。公式 WebSocket の URL と自分のキーを入力します。キーは iPhone のキーチェーンにのみ保存し、再表示しません。空欄なら同じ URL の既存キーを維持します。" preferredStyle:UIAlertControllerStyleAlert];
     [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"wss://…/api-ws/v1/inference";f.text=TIOVoiceTTSService();f.keyboardType=UIKeyboardTypeURL;f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];
-    [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"新 TTS API Key（不回显）";f.secureTextEntry=YES;f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];
-    [a addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"新しい TTS API キー（再表示不可）";f.secureTextEntry=YES;f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];
+    [a addAction:[UIAlertAction actionWithTitle:@"キャンセル" style:UIAlertActionStyleCancel handler:nil]];
     [a addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){
         NSString *endpoint=a.textFields[0].text?:@"",*key=a.textFields[1].text?:@"";a.textFields[1].text=@"";
-        if(!TIOVoiceTTSServiceURLValid(endpoint)||!([key hasPrefix:@"sk-"]||!key.length)||key.length>1024||[key rangeOfCharacterFromSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].location!=NSNotFound){Alert(@"未保存",@"需要阿里官方 wss Endpoint 和有效 Key。");return;}
-        if(key.length&&!StoreKey(endpoint,key)){Alert(@"未保存",@"钥匙串写入失败。");return;}
-        if(!ReadKey(endpoint).length){Alert(@"未保存",@"该地址尚未配置 Key。");return;}
+        if(!TIOVoiceTTSServiceURLValid(endpoint)||!([key hasPrefix:@"sk-"]||!key.length)||key.length>1024||[key rangeOfCharacterFromSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].location!=NSNotFound){Alert(@"保存できませんでした",@"Ali 公式の wss URL と有効なキーが必要です。");return;}
+        if(key.length&&!StoreKey(endpoint,key)){Alert(@"保存できませんでした",@"キーチェーンへの書き込みに失敗しました。");return;}
+        if(!ReadKey(endpoint).length){Alert(@"保存できませんでした",@"この URL のキーが未設定です。");return;}
         [VoiceTTS cancel];[Prefs setObject:endpoint forKey:@"ttsEndpoint"];[self.tableView reloadData];
     }]];
-    [a addAction:[UIAlertAction actionWithTitle:@"删除当前云端 Key" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *x){[VoiceTTS cancel];StoreKey(TIOVoiceTTSService(),@"");[Prefs setObject:@"local" forKey:@"ttsEngine"];VoiceTTS.localMode=YES;[self.tableView reloadData];}]];
+    [a addAction:[UIAlertAction actionWithTitle:@"現在のクラウド用キーを削除" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *x){[VoiceTTS cancel];StoreKey(TIOVoiceTTSService(),@"");[Prefs setObject:@"local" forKey:@"ttsEngine"];VoiceTTS.localMode=YES;[self.tableView reloadData];}]];
     [self presentViewController:a animated:YES completion:nil];
 }
 - (void)testTTS {
-    if(!TTSOn()){Alert(@"请先开启",@"请打开“回答同步朗读”开关；仅云端模式需要 TTS Key。");return;}
-    [VoiceTTS beginTurn];[VoiceTTS appendFullText:@"Turbo IO 实时语音测试，现在可以听到我说话。" finished:YES];
+    if(!TTSOn()){Alert(@"読み上げを有効にしてください",@"回答の読み上げをオンにしてください。TTS キーが必要なのはクラウドモードだけです。");return;}
+    [VoiceTTS beginTurn];[VoiceTTS appendFullText:@"Turbo IO の音声テストです。声が聞こえていますか。" finished:YES];
     [self.tableView reloadData];
     __weak typeof(self) weak=self;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,3*NSEC_PER_SEC),dispatch_get_main_queue(),^{[weak.tableView reloadData];});
@@ -392,25 +392,25 @@ static void AlwaysOnHook(id self,SEL cmd,id value) {
     [a addAction:[UIAlertAction actionWithTitle:@"移除本机搜索 Key" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *x){[Controller cancel];[Prefs setBool:NO forKey:@"tinyfishEnabled"];BOOL ok=StoreKey(@"https://api.search.tinyfish.ai",@"");[self.tableView reloadData];if(!ok)Alert(@"未移除",@"钥匙串删除失败；搜索已关闭。");}]];[self presentViewController:a animated:YES completion:nil];
 }
 - (void)testSearch {
-    if(![Prefs boolForKey:@"tinyfishEnabled"]||!ReadKey(@"https://api.search.tinyfish.ai").length){Alert(@"未启用",@"请先配置并开启 TinyFish 搜索。");return;}
+    if(![Prefs boolForKey:@"tinyfishEnabled"]||!ReadKey(@"https://api.search.tinyfish.ai").length){Alert(@"無効です",@"先に TinyFish 検索を設定して有効にしてください。");return;}
     [_testRequest cancel];_testRequest=[TIORequest new];__weak typeof(self) weak=self;
-    _testRequest.update=^(NSString *text,BOOL done,NSString *error){if(done){typeof(self) strong=weak;Alert(@"联网测试结果",[NSString stringWithFormat:@"实际搜索请求：%lu 次\n%@",(unsigned long)strong.testRequest.searchCount,error?:text]);}};
-    [_testRequest startQuestion:@"请实际联网搜索 TinyFish Search API 的官方地址，用一句中文说明，并附官方来源URL。"];
+    _testRequest.update=^(NSString *text,BOOL done,NSString *error){if(done){typeof(self) strong=weak;Alert(@"ウェブ検索のテスト結果",[NSString stringWithFormat:@"実際の検索回数：%lu 回\n%@",(unsigned long)strong.testRequest.searchCount,error?:text]);}};
+    [_testRequest startQuestion:@"TinyFish Search API の公式 URL を実際に検索し、公式の出典 URL を添えて日本語で一文で説明してください。"];
 }
 - (void)capture:(UISwitch *)sender {
     if(!sender.on){[Prefs setBool:NO forKey:@"captureFinalText"];return;}
     sender.on=NO;
-    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"保存全天智记文字？" message:@"仅将之后收到的最终识别文字另存于官方 App 内的扩展目录。包含真实谈话内容，请确保录音和保存已获相关人员同意。不采集位置，不自动上传。" preferredStyle:UIAlertControllerStyleAlert];
-    [a addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-    [a addAction:[UIAlertAction actionWithTitle:@"启用本机保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){Controller.captureEpoch=NSUUID.UUID.UUIDString;[Prefs setBool:YES forKey:@"captureFinalText"];[self.tableView reloadData];}]];[self presentViewController:a animated:YES completion:nil];
+    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"ライフログのテキストを保存しますか？" message:@"今後受け取る認識済みのテキストだけを、公式アプリ内の拡張機能用フォルダに別途保存します。実際の会話が含まれるため、録音と保存について関係者の同意を確認してください。位置情報は取得せず、自動アップロードもしません。" preferredStyle:UIAlertControllerStyleAlert];
+    [a addAction:[UIAlertAction actionWithTitle:@"キャンセル" style:UIAlertActionStyleCancel handler:nil]];
+    [a addAction:[UIAlertAction actionWithTitle:@"iPhone 内に保存する" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){Controller.captureEpoch=NSUUID.UUID.UUIDString;[Prefs setBool:YES forKey:@"captureFinalText"];[self.tableView reloadData];}]];[self presentViewController:a animated:YES completion:nil];
 }
 - (void)configure {
-    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"自有模型接口" message:@"填写完整 HTTPS /chat/completions 地址。Key 仅存手机钥匙串；留空保留同一地址的旧 Key，改地址不会带过去。" preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"独自モデルの API" message:@"HTTPS の /chat/completions URL を入力してください。キーは iPhone のキーチェーンにのみ保存します。空欄なら同じ URL の既存キーを維持し、URL を変えてもキーは引き継ぎません。" preferredStyle:UIAlertControllerStyleAlert];
     [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"https://…/v1/chat/completions";f.text=[Prefs stringForKey:@"endpoint"];f.keyboardType=UIKeyboardTypeURL;f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];
-    [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"模型名称";f.text=[Prefs stringForKey:@"model"];f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];
-    [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"新 API Key（不回显）";f.secureTextEntry=YES;f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];
-    [a addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-    [a addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){NSString *url=a.textFields[0].text?:@"",*model=a.textFields[1].text?:@"",*key=a.textFields[2].text?:@"";NSURL *valid=TIOValidateEndpoint(url);if(!valid||!TIOChatRequest(model,@"测试")){Alert(@"未保存",@"需要有效的 HTTPS chat/completions 地址和模型名称。");return;}url=valid.absoluteString;if(key.length&&!StoreKey(url,key)){Alert(@"未保存",@"钥匙串写入失败。");return;}[Controller cancel];if(![[Prefs stringForKey:@"endpoint"] isEqual:url]||![[Prefs stringForKey:@"model"] isEqual:model])[Controller.history clear];[Prefs setInteger:0 forKey:@"mode"];[Prefs setObject:url forKey:@"endpoint"];[Prefs setObject:model forKey:@"model"];[self.tableView reloadData];}]];[self presentViewController:a animated:YES completion:nil];
+    [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"モデル名";f.text=[Prefs stringForKey:@"model"];f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];
+    [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"新しい API キー（再表示不可）";f.secureTextEntry=YES;f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];
+    [a addAction:[UIAlertAction actionWithTitle:@"キャンセル" style:UIAlertActionStyleCancel handler:nil]];
+    [a addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){NSString *url=a.textFields[0].text?:@"",*model=a.textFields[1].text?:@"",*key=a.textFields[2].text?:@"";NSURL *valid=TIOValidateEndpoint(url);if(!valid||!TIOChatRequest(model,@"テスト")){Alert(@"保存できませんでした",@"有効な HTTPS の chat/completions URL とモデル名が必要です。");return;}url=valid.absoluteString;if(key.length&&!StoreKey(url,key)){Alert(@"保存できませんでした",@"キーチェーンへの書き込みに失敗しました。");return;}[Controller cancel];if(![[Prefs stringForKey:@"endpoint"] isEqual:url]||![[Prefs stringForKey:@"model"] isEqual:model])[Controller.history clear];[Prefs setInteger:0 forKey:@"mode"];[Prefs setObject:url forKey:@"endpoint"];[Prefs setObject:model forKey:@"model"];[self.tableView reloadData];}]];[self presentViewController:a animated:YES completion:nil];
 }
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)ip {
     NSDictionary *r=self.sections[ip.section][@"rows"][ip.row];[tableView deselectRowAtIndexPath:ip animated:YES];
@@ -440,10 +440,10 @@ static void AlwaysOnHook(id self,SEL cmd,id value) {
 }
 - (void)legacySelect:(UITableView *)tableView at:(NSIndexPath *)ip {
     if(ip.section==0&&ip.row==0){
-        UIAlertController *a=[UIAlertController alertControllerWithTitle:@"回答模型" message:@"选择实验接管会将识别后的问题发给你配置的服务。未知业务仍走官方；无已验证聊天模板时只保留选择、不接管。" preferredStyle:UIAlertControllerStyleActionSheet];
-        NSArray *titles=@[@"官方默认",@"随机字符串验收（不调自有 API）",@"自定义模型（实验）"];
-        for(NSInteger i=0;i<3;i++){[a addAction:[UIAlertAction actionWithTitle:titles[i] style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){[Controller cancel];[Prefs setInteger:i forKey:@"mode"];[self.tableView reloadData];if(i&&![Prefs stringForKey:@"verifiedChatDomain"])Alert(@"尚未接管",@"需要先确认当前版本的聊天回包 domain。请先用官方模式完成一次问答，开发者核对后才开启接管。");}]];}
-        [a addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];a.popoverPresentationController.sourceView=self.view;a.popoverPresentationController.sourceRect=CGRectMake(self.view.bounds.size.width/2,100,1,1);[self presentViewController:a animated:YES completion:nil];
+        UIAlertController *a=[UIAlertController alertControllerWithTitle:@"回答モデル" message:@"実験モードでは認識された質問を設定先のサービスへ送ります。未対応の処理は公式アプリへ戻します。検証済みの会話データ形式がない場合、選択だけを記録します。" preferredStyle:UIAlertControllerStyleActionSheet];
+        NSArray *titles=@[@"公式の回答",@"ランダム文字列で検証（独自 API は呼ばない）",@"独自モデル（実験）"];
+        for(NSInteger i=0;i<3;i++){[a addAction:[UIAlertAction actionWithTitle:titles[i] style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){[Controller cancel];[Prefs setInteger:i forKey:@"mode"];[self.tableView reloadData];if(i&&![Prefs stringForKey:@"verifiedChatDomain"])Alert(@"切り替えは保留中です",@"このバージョンの会話応答 domain を確認する必要があります。先に公式モードで一度質問し、開発者が確認してから切り替えます。");}]];}
+        [a addAction:[UIAlertAction actionWithTitle:@"キャンセル" style:UIAlertActionStyleCancel handler:nil]];a.popoverPresentationController.sourceView=self.view;a.popoverPresentationController.sourceRect=CGRectMake(self.view.bounds.size.width/2,100,1,1);[self presentViewController:a animated:YES completion:nil];
     }else if(ip.section==0&&ip.row==1)[self configure];
     else if(ip.section==0&&ip.row==8)[self configureSearch];
     else if(ip.section==0&&ip.row==9)[self testSearch];
@@ -452,7 +452,7 @@ static void AlwaysOnHook(id self,SEL cmd,id value) {
     else if(ip.section==0&&ip.row==11)Alert(@"当前语音模型 Tools",[NSString stringWithFormat:@"knowledge_query / knowledge_query_status：%@。Codex只读检索微信归档、项目与学习资料，引用来源；不修改知识库。\n\ncreate_todo：标题新增，交给官方入口；等待列表新ID才确认，超时不重试。\nweb_search：TinyFish公开搜索，需开启联网。\n\n待办工具不支持修改、删除、完成、提醒时间，暂不写入知识库网页。只有真实语音会话拥有待办执行上下文。",TIOKnowledgeEnabled()?@"已开启":@"未开启，请在知识库配置连接"]);
     else if(ip.section==0&&ip.row==4){UIAlertController *a=[UIAlertController alertControllerWithTitle:@"清空自有模型上下文？" message:@"仅清空本扩展内存中的聊天历史，不删除官方记录。正在进行的自有请求会取消并恢复官方模式。" preferredStyle:UIAlertControllerStyleAlert];[a addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];[a addAction:[UIAlertAction actionWithTitle:@"清空" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *x){[Controller cancel];[Controller.history clear];[Prefs setInteger:0 forKey:@"mode"];[self.tableView reloadData];}]];[self presentViewController:a animated:YES completion:nil];}
     else if(ip.section==0&&ip.row==5)TIOOpenProfile(self);
-    else if(ip.section==0&&ip.row==2){[_testRequest cancel];_testRequest=[TIORequest new];__weak typeof(self) weakSelf=self;_testRequest.update=^(NSString *text,BOOL done,NSString *error){if(done){Alert(error?@"API 测试失败":@"API 测试结果",error?:text);weakSelf.testRequest=nil;}};[_testRequest startQuestion:@"只回复：私用接口测试通过。"];
+    else if(ip.section==0&&ip.row==2){[_testRequest cancel];_testRequest=[TIORequest new];__weak typeof(self) weakSelf=self;_testRequest.update=^(NSString *text,BOOL done,NSString *error){if(done){Alert(error?@"API テスト失敗":@"API テスト結果",error?:text);weakSelf.testRequest=nil;}};[_testRequest startQuestion:@"「独自 API のテストに成功しました」とだけ日本語で答えてください。"];
     }else if(ip.section==1&&ip.row==1){dispatch_async(ArchiveQueue,^{NSError *error=nil;NSArray *urls=[Archive exportAt:NSDate.date error:&error];dispatch_async(dispatch_get_main_queue(),^{if(!urls){Alert(@"暂无可分享文件",error.localizedDescription?:@"导出失败，原件未改。");return;}UIActivityViewController *sheet=[[UIActivityViewController alloc]initWithActivityItems:urls applicationActivities:nil];sheet.popoverPresentationController.sourceView=self.view;sheet.popoverPresentationController.sourceRect=CGRectMake(self.view.bounds.size.width/2,100,1,1);[self presentViewController:sheet animated:YES completion:nil];});});}
     else if(ip.section==2)[self.tableView reloadData];
 }
@@ -502,7 +502,7 @@ static BOOL VersionMatches(void) {
 static void AddEntry(void) {
     UIViewController *top=TopController();UIWindow *window=top.view.window;if(!window)return;
     if(top.tabBarController.view.tag==7920||top.view.tag==7920){Entry.hidden=YES;return;}
-    if(!Entry){Entry=[UIButton buttonWithType:UIButtonTypeSystem];[Entry setTitle:@"研究" forState:UIControlStateNormal];Entry.accessibilityLabel=@"Turbo IO 私用研究扩展";Entry.backgroundColor=UIColor.systemIndigoColor;[Entry setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];Entry.layer.cornerRadius=20;[Entry addTarget:TIOEntryTarget.class action:@selector(show) forControlEvents:UIControlEventTouchUpInside];}
+    if(!Entry){Entry=[UIButton buttonWithType:UIButtonTypeSystem];[Entry setTitle:@"Turbo" forState:UIControlStateNormal];Entry.accessibilityLabel=@"Turbo IO の追加機能を開く";Entry.backgroundColor=UIColor.systemIndigoColor;[Entry setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];Entry.layer.cornerRadius=20;[Entry addTarget:TIOEntryTarget.class action:@selector(show) forControlEvents:UIControlEventTouchUpInside];}
     Entry.hidden=NO;Entry.frame=CGRectMake(window.bounds.size.width-66,window.safeAreaInsets.top+80,54,40);[window addSubview:Entry];
     if(VersionMatches())TIOStartHomeTabBridge(Entry,^{[TIOEntryTarget show];});
 }

@@ -14,8 +14,8 @@ NSDictionary *TIOValidatedProfile(NSDictionary *value){
 NSDictionary *TIOProfile(void){return TIOValidatedProfile([Store() dictionaryForKey:@"profile"])?:@{@"name":@"",@"identity":@"",@"preferences":@""};}
 BOOL TIOSaveProfile(NSDictionary *value){NSDictionary *valid=TIOValidatedProfile(value);if(!valid)return NO;[Store() setObject:valid forKey:@"profile"];return YES;}
 NSString *TIOProfilePrompt(NSDictionary *value){NSDictionary *p=TIOValidatedProfile(value);if(!p)return @"";NSMutableArray *lines=[NSMutableArray new];
-    if([p[@"name"] length])[lines addObject:[@"用户希望被称呼为：" stringByAppendingString:p[@"name"]]];
-    if([p[@"identity"] length])[lines addObject:[@"用户提供的身份与背景：" stringByAppendingString:p[@"identity"]]];
-    if([p[@"preferences"] length])[lines addObject:[@"用户设置的回答偏好：" stringByAppendingString:p[@"preferences"]]];
+    if([p[@"name"] length])[lines addObject:[@"ユーザーが希望する呼び名：" stringByAppendingString:p[@"name"]]];
+    if([p[@"identity"] length])[lines addObject:[@"ユーザーが入力した立場・背景：" stringByAppendingString:p[@"identity"]]];
+    if([p[@"preferences"] length])[lines addObject:[@"ユーザーが設定した回答の希望：" stringByAppendingString:p[@"preferences"]]];
     return [lines componentsJoinedByString:@"\n"];
 }
