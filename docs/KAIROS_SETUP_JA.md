@@ -15,7 +15,8 @@ Kairos の「設定 → API と MCP」で「RayNeo iO 用（質問のみ）」�
 
 Kairos は現在 tailnet 内で公開されている。
 各スマートフォンから Kairos の HTTPS URL に到達するには、その端末で Tailscale を接続する必要がある。
-接続先は `https://<Kairos の tailnet ホスト>/api/glasses/chat/completions` とする。
+このホストの Kairos は Tailscale Serve の HTTPS **10000 番ポート**で公開されている。
+接続先は `https://<Kairos の tailnet ホスト>:10000/api/glasses/chat/completions` とする。
 ホスト名やトークンはソースコードや共有するスクリーンショットに書かない。
 
 ## iPhone
