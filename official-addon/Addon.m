@@ -46,7 +46,7 @@ static NSString *const Domain=@"io.turboio.official-private-addon";
 static NSUserDefaults *Prefs;
 static TIOTranscriptArchive *Archive;
 static dispatch_queue_t ArchiveQueue;
-static NSString *Diagnostic=@"尚未收到回调";
+static NSString *Diagnostic=@"コールバックを待機中";
 static BOOL HooksReady=NO;
 static UIButton *Entry;
 static void (*OriginalAsr)(id,SEL,id,BOOL,id);
@@ -89,7 +89,7 @@ static UIViewController *TopController(void) {
     UIViewController *c=window.rootViewController;while(c.presentedViewController)c=c.presentedViewController;return c;
 }
 static void Alert(NSString *title,NSString *message) {
-    dispatch_async(dispatch_get_main_queue(),^{UIViewController *top=TopController();if(!top)return;UIAlertController *a=[UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];[a addAction:[UIAlertAction actionWithTitle:@"知道了" style:UIAlertActionStyleCancel handler:nil]];[top presentViewController:a animated:YES completion:nil];});
+    dispatch_async(dispatch_get_main_queue(),^{UIViewController *top=TopController();if(!top)return;UIAlertController *a=[UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];[a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];[top presentViewController:a animated:YES completion:nil];});
 }
 
 @interface TIORequest : TIOWebChatRequest
@@ -100,12 +100,14 @@ static void Alert(NSString *title,NSString *message) {
 - (void)startQuestion:(NSString *)question {
     NSString *endpoint=[Prefs stringForKey:@"endpoint"]?:@"",*model=[Prefs stringForKey:@"model"]?:@"";
     NSURL *url=TIOValidateEndpoint(endpoint); NSString *key=ReadKey(endpoint);
-    NSDictionary *payload=TIOChatRequestWithHistory(model,question,_history?:@[]);
-    if(!url||!payload||!key.length){if(self.update)self.update(@"",YES,@"请先配置有效的 HTTPS 接口、模型和 Key。");return;}
+    BOOL kairos=[url.path isEqualToString:@"/api/glasses/chat/completions"];
+    NSDictionary *payload=TIOChatRequestWithHistory(model,question,kairos?@[]:(_history?:@[]));
+    if(!url||!payload||!key.length){if(self.update)self.update(@"",YES,@"有効な HTTPS API、モデル、キーを設定してください。");return;}
     // Optional provider extension, sent only when explicitly selected by user.
     NSMutableDictionary *body=[payload mutableCopy];if([Prefs boolForKey:@"deepseekDisableThinking"])body[@"thinking"]=@{@"type":@"disabled"};
-    NSString *searchKey=([Prefs boolForKey:@"tinyfishEnabled"]||self.newsMode)?ReadKey(@"https://api.search.tinyfish.ai"):@"";
-    TIOImportKnowledgeConnection();if(!self.newsMode&&TIOKnowledgeEnabled()){TIOKnowledgeClient *client=[TIOKnowledgeClient new];self.cancelKnowledge=^{[client cancel];};self.knowledgeQuery=^(NSDictionary *input,BOOL statusOnly,void(^done)(NSDictionary *)){void(^completion)(NSDictionary *,NSString *)=^(NSDictionary *j,NSString *e){done(j?:@{@"status":@"failed"});};if(statusOnly)[client refreshLast:completion];else [client query:input completion:completion];};}
+    NSString *searchKey=!kairos&&([Prefs boolForKey:@"tinyfishEnabled"]||self.newsMode)?ReadKey(@"https://api.search.tinyfish.ai"):@"";
+    if(kairos)self.createTodo=nil;
+    TIOImportKnowledgeConnection();if(!kairos&&!self.newsMode&&TIOKnowledgeEnabled()){TIOKnowledgeClient *client=[TIOKnowledgeClient new];self.cancelKnowledge=^{[client cancel];};self.knowledgeQuery=^(NSDictionary *input,BOOL statusOnly,void(^done)(NSDictionary *)){void(^completion)(NSDictionary *,NSString *)=^(NSDictionary *j,NSString *e){done(j?:@{@"status":@"failed"});};if(statusOnly)[client refreshLast:completion];else [client query:input completion:completion];};}
     [self startEndpoint:url key:key payload:body searchKey:searchKey];
 }
 @end
@@ -155,7 +157,7 @@ static id CopyResponse(id source,NSString *answer,BOOL final) {
     // network delta cannot re-open the page. New audio start releases this gate.
     [self cancel];_voiceExited=YES;_asr=@"";_sid=@"";
     ((void(*)(id,SEL))objc_msgSend)(helper,NSSelectorFromString(@"stopWorkflow"));
-    Diagnostic=@"语音退出已调用官方停止入口；等待镜片确认";
+    Diagnostic=@"音声による終了を公式アプリへ通知済み。眼鏡側の確認待ち";
     return YES;
 }
 - (void)acceptAsr:(NSString *)text finished:(BOOL)final session:(NSString *)sid listener:(id)listener {
@@ -165,7 +167,7 @@ static id CopyResponse(id source,NSString *answer,BOOL final) {
     if(_seenFinals.count>=256)[_seenFinals removeAllObjects];[_seenFinals addObject:identity];
     [self cancel];[_taskGate beginTurn];_listener=listener;_asr=text;_sid=sid;
     // Do not seize an unknown response shape. Wait for an eligible official template.
-    Diagnostic=@"ASR final 已到达，等待官方聊天回包模板";
+    Diagnostic=@"音声認識が確定。公式アプリの会話データ形式を確認中";
 }
 - (void)emitText:(NSString *)text done:(BOOL)done error:(NSString *)error generation:(NSUInteger)gen {
     if(gen!=_generation||!_ownsTurn||_responseDone||!_listener)return;
@@ -175,13 +177,13 @@ static id CopyResponse(id source,NSString *answer,BOOL final) {
         // Close an owned turn even if a provider rewrites a previous chunk.
         // Keep ownership until the next turn so late official chunks stay suppressed.
         [_request cancel];_request=nil;_responseDone=YES;
-        id failure=CopyResponse(_responseTemplate,@"\n[回复流格式变化，本轮已停止。]",YES);
+        id failure=CopyResponse(_responseTemplate,@"\n[応答データの形式が変わったため、この会話を停止しました。]",YES);
         if(failure)OriginalNlp(_listener,NSSelectorFromString(@"onNlpResult:"),failure);
         OriginalComplete(_listener,NSSelectorFromString(@"onResponseComplete"));
-        Diagnostic=@"模型输出不是追加流，已提交错误收尾";return;
+        Diagnostic=@"モデルの応答が追記形式ではありません。エラーとして終了しました";return;
     }
-    if(delta.length||done){id wrapper=CopyResponse(_responseTemplate,delta,done);if(!wrapper){[_request cancel];_request=nil;_responseDone=YES;OriginalComplete(_listener,NSSelectorFromString(@"onResponseComplete"));Diagnostic=@"回复模板复制失败，已提交收尾";return;}OriginalNlp(_listener,NSSelectorFromString(@"onNlpResult:"),wrapper);_emitted=[text copy];if(TTSOn()&&!error)[VoiceTTS appendFullText:text finished:done];}
-    if(done){_responseDone=YES;if(!error&&_request&&text.length)[_history appendQuestion:_requestQuestion answer:text];Diagnostic=error?@"自定义回复失败，已提交错误收尾":@"自定义回复结束，已提交官方收尾回调";OriginalComplete(_listener,NSSelectorFromString(@"onResponseComplete"));}
+    if(delta.length||done){id wrapper=CopyResponse(_responseTemplate,delta,done);if(!wrapper){[_request cancel];_request=nil;_responseDone=YES;OriginalComplete(_listener,NSSelectorFromString(@"onResponseComplete"));Diagnostic=@"応答データを作成できず、会話を終了しました";return;}OriginalNlp(_listener,NSSelectorFromString(@"onNlpResult:"),wrapper);_emitted=[text copy];if(TTSOn()&&!error)[VoiceTTS appendFullText:text finished:done];}
+    if(done){_responseDone=YES;if(!error&&_request&&text.length)[_history appendQuestion:_requestQuestion answer:text];Diagnostic=error?@"独自モデルの応答に失敗しました":@"独自モデルの応答を完了しました";OriginalComplete(_listener,NSSelectorFromString(@"onResponseComplete"));}
 }
 - (BOOL)receiveNlp:(id)response listener:(id)listener {
     NSString *domain=String(Get(response,@"domain")),*intent=String(Get(response,@"intent")),*sub=String(Get(response,@"sub"));
@@ -194,7 +196,7 @@ static id CopyResponse(id source,NSString *answer,BOOL final) {
     if([_taskGate observeDomain:domain intent:intent command:String(Get(command,@"name")) params:Get(command,@"params") session:String(Get(response,@"sessionId")) expectedSession:_sid?:@"" sameListener:listener==_listener]){
         // Invalidate in-flight private deltas before forwarding the official
         // command. Keep subsequent acknowledgement and completion official too.
-        [self cancel];Diagnostic=@"官方待办接管本轮；自有回复已取消，完成回调交回官方";
+        [self cancel];Diagnostic=@"公式の ToDo 処理に切り替えました。独自モデルの応答を取り消しました";
     }
     if(_taskGate.official)return NO;
     BOOL eligible=TIOIsEligibleChat(domain,intent,sub,offline,Get(response,@"command")!=nil);
@@ -208,7 +210,7 @@ static id CopyResponse(id source,NSString *answer,BOOL final) {
     if(_ownsTurn)return YES;
     _responseTemplate=response;_ownsTurn=YES;_started=YES;_emitted=@"";NSUInteger gen=_generation;
     if([Prefs integerForKey:@"mode"]==1){
-        NSString *test=[@"私用模型测试 " stringByAppendingString:[NSUUID.UUID.UUIDString substringToIndex:6]];
+        NSString *test=[@"独自モデルのテスト " stringByAppendingString:[NSUUID.UUID.UUIDString substringToIndex:6]];
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(),^{[self emitText:test done:YES error:nil generation:gen];});
     }else{
         _request=[TIORequest new];__weak typeof(self) weakSelf=self;
@@ -273,7 +275,7 @@ static void AlwaysOnHook(id self,SEL cmd,id value) {
     NSString *text=String(Get(value,@"text")),*round=String(Get(value,@"roundId"));
     id r=Get(value,@"role");NSString *role=[r respondsToSelector:@selector(stringValue)]?[r stringValue]:String(r);
     NSString *identity=round.length?[NSString stringWithFormat:@"%@:%@",Controller.captureEpoch,round]:@"";
-    dispatch_async(ArchiveQueue,^{NSError *error=nil;BOOL ok=[Archive recordText:text round:identity role:role at:NSDate.date error:&error];dispatch_async(dispatch_get_main_queue(),^{Diagnostic=ok?@"全天智记最终文字已保存到扩展本机归档":@"全天智记归档失败，官方数据未改";});});
+    dispatch_async(ArchiveQueue,^{NSError *error=nil;BOOL ok=[Archive recordText:text round:identity role:role at:NSDate.date error:&error];dispatch_async(dispatch_get_main_queue(),^{Diagnostic=ok?@"確定テキストを拡張機能の端末内アーカイブに保存しました":@"テキストの保存に失敗しました。公式データは変更していません";});});
 }
 
 @interface TIOPanel : UITableViewController
@@ -383,13 +385,13 @@ static void AlwaysOnHook(id self,SEL cmd,id value) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,8*NSEC_PER_SEC),dispatch_get_main_queue(),^{[weak.tableView reloadData];});
 }
 - (void)voiceExit:(UISwitch *)sender {[Prefs setBool:sender.on forKey:@"voiceExitCommands"];}
-- (void)searchToggle:(UISwitch *)sender {if(sender.on&&!ReadKey(@"https://api.search.tinyfish.ai").length){sender.on=NO;Alert(@"请先配置",@"需要你自己的 TinyFish API Key。");return;}[Prefs setBool:sender.on forKey:@"tinyfishEnabled"];[Controller cancel];}
+- (void)searchToggle:(UISwitch *)sender {if(sender.on&&!ReadKey(@"https://api.search.tinyfish.ai").length){sender.on=NO;Alert(@"設定してください",@"自分の TinyFish API キーが必要です。");return;}[Prefs setBool:sender.on forKey:@"tinyfishEnabled"];[Controller cancel];}
 - (void)configureSearch {
-    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"TinyFish 搜索配置" message:@"开启后，自有模型可把必要检索词发给 TinyFish，将搜索摘要交回模型。官方 ASR 不变。不适合检索敏感信息。Key 仅存本机钥匙串；留空保留已有 Key。" preferredStyle:UIAlertControllerStyleAlert];
-    [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"TinyFish API Key（不回显）";f.secureTextEntry=YES;f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];
-    [a addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-    [a addAction:[UIAlertAction actionWithTitle:@"保存并启用" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){NSString *key=a.textFields[0].text?:@"";a.textFields[0].text=@"";if((key.length&&(![key hasPrefix:@"sk-tinyfish-"]||[key rangeOfCharacterFromSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].location!=NSNotFound||!StoreKey(@"https://api.search.tinyfish.ai",key)))||(!key.length&&!ReadKey(@"https://api.search.tinyfish.ai").length)){Alert(@"未保存",@"Key 格式或钥匙串写入失败。");return;}[Controller cancel];[Prefs setBool:YES forKey:@"tinyfishEnabled"];[self.tableView reloadData];}]];
-    [a addAction:[UIAlertAction actionWithTitle:@"移除本机搜索 Key" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *x){[Controller cancel];[Prefs setBool:NO forKey:@"tinyfishEnabled"];BOOL ok=StoreKey(@"https://api.search.tinyfish.ai",@"");[self.tableView reloadData];if(!ok)Alert(@"未移除",@"钥匙串删除失败；搜索已关闭。");}]];[self presentViewController:a animated:YES completion:nil];
+    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"TinyFish 検索の設定" message:@"有効にすると、独自モデルは必要な検索語を TinyFish に送り、検索結果の要約を受け取れます。公式の音声認識は変わりません。機密情報の検索には使わないでください。キーは端末のキーチェーンにのみ保存し、空欄なら既存のキーを維持します。" preferredStyle:UIAlertControllerStyleAlert];
+    [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"TinyFish API キー（再表示不可）";f.secureTextEntry=YES;f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];
+    [a addAction:[UIAlertAction actionWithTitle:@"キャンセル" style:UIAlertActionStyleCancel handler:nil]];
+    [a addAction:[UIAlertAction actionWithTitle:@"保存して有効にする" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){NSString *key=a.textFields[0].text?:@"";a.textFields[0].text=@"";if((key.length&&(![key hasPrefix:@"sk-tinyfish-"]||[key rangeOfCharacterFromSet:NSCharacterSet.whitespaceAndNewlineCharacterSet].location!=NSNotFound||!StoreKey(@"https://api.search.tinyfish.ai",key)))||(!key.length&&!ReadKey(@"https://api.search.tinyfish.ai").length)){Alert(@"保存できませんでした",@"キーの形式、またはキーチェーンへの書き込みを確認してください。");return;}[Controller cancel];[Prefs setBool:YES forKey:@"tinyfishEnabled"];[self.tableView reloadData];}]];
+    [a addAction:[UIAlertAction actionWithTitle:@"端末内の検索用キーを削除" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *x){[Controller cancel];[Prefs setBool:NO forKey:@"tinyfishEnabled"];BOOL ok=StoreKey(@"https://api.search.tinyfish.ai",@"");[self.tableView reloadData];if(!ok)Alert(@"削除できませんでした",@"キーチェーンからの削除に失敗しました。検索は無効にしました。");}]];[self presentViewController:a animated:YES completion:nil];
 }
 - (void)testSearch {
     if(![Prefs boolForKey:@"tinyfishEnabled"]||!ReadKey(@"https://api.search.tinyfish.ai").length){Alert(@"無効です",@"先に TinyFish 検索を設定して有効にしてください。");return;}
@@ -405,7 +407,7 @@ static void AlwaysOnHook(id self,SEL cmd,id value) {
     [a addAction:[UIAlertAction actionWithTitle:@"iPhone 内に保存する" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){Controller.captureEpoch=NSUUID.UUID.UUIDString;[Prefs setBool:YES forKey:@"captureFinalText"];[self.tableView reloadData];}]];[self presentViewController:a animated:YES completion:nil];
 }
 - (void)configure {
-    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"独自モデルの API" message:@"HTTPS の /chat/completions URL を入力してください。キーは iPhone のキーチェーンにのみ保存します。空欄なら同じ URL の既存キーを維持し、URL を変えてもキーは引き継ぎません。" preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"独自モデルの API" message:@"HTTPS の /chat/completions URL を入力してください。Kairos は /api/glasses/chat/completions、モデル名は kairos、キーは眼鏡用の専用トークンです。キーは iPhone のキーチェーンにのみ保存します。空欄なら同じ URL の既存キーを維持します。" preferredStyle:UIAlertControllerStyleAlert];
     [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"https://…/v1/chat/completions";f.text=[Prefs stringForKey:@"endpoint"];f.keyboardType=UIKeyboardTypeURL;f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];
     [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"モデル名";f.text=[Prefs stringForKey:@"model"];f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];
     [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"新しい API キー（再表示不可）";f.secureTextEntry=YES;f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];

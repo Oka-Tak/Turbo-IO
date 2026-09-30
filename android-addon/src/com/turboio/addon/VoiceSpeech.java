@@ -16,7 +16,7 @@ final class VoiceSpeech {
     private static AudioManager audio;private static AudioFocusRequest focus;private static MediaPlayer player;
     private static boolean ready,initializing,foreground=true;private static long generation,engineGeneration;private static int serial;
     private static final SpeechBuffer buffer=new SpeechBuffer();private static final ArrayDeque<String> queue=new ArrayDeque<>();
-    private static final Set<Runnable> listeners=new HashSet<>();private static String status="待命",activeId="",session="";
+    private static final Set<Runnable> listeners=new HashSet<>();private static String status="待機中",activeId="",session="";
     private static File activeFile;private static boolean speaking,received,blocked;private static Object source;private static String official="";
     static void init(Context c){if(app!=null)return;app=c.getApplicationContext();prefs=app.getSharedPreferences("turboio_settings",0);audio=(AudioManager)app.getSystemService(Context.AUDIO_SERVICE);
         audio.registerAudioDeviceCallback(new AudioDeviceCallback(){public void onAudioDevicesRemoved(AudioDeviceInfo[] d){if(player!=null&&!phoneAllowed())checkRoute();}},MAIN);
@@ -47,10 +47,10 @@ final class VoiceSpeech {
         long token=generation,engine=++engineGeneration;
         MAIN.postDelayed(()->{if(initializing&&engineGeneration==engine){initializing=ready=false;engineGeneration++;if(tts!=null){tts.shutdown();tts=null;}fail("语音引擎初始化超时，请检查系统语音服务");}},15000);
         try{if(tts!=null){tts.shutdown();tts=null;}tts=new TextToSpeech(app,result->MAIN.post(()->{if(engine!=engineGeneration)return;initializing=false;if(result!=TextToSpeech.SUCCESS){ready=false;fail("未找到本机 TTS 引擎，请在系统安装语音数据");return;}
-            try{Voice selected=null;Set<Voice> voices=tts.getVoices();if(voices!=null)for(Voice v:voices)if(!v.isNetworkConnectionRequired()&&v.getLocale().getLanguage().equals("zh")&&(v.getFeatures()==null||!v.getFeatures().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED))){if(selected==null||v.getQuality()>selected.getQuality())selected=v;}
-                if(selected==null||tts.setVoice(selected)!=TextToSpeech.SUCCESS){ready=false;fail("缺少已安装的中文本机音色，请先在系统下载；不会改用联网音色");return;}
+            try{Voice selected=null;Set<Voice> voices=tts.getVoices();if(voices!=null)for(Voice v:voices)if(!v.isNetworkConnectionRequired()&&v.getLocale().getLanguage().equals("ja")&&(v.getFeatures()==null||!v.getFeatures().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED))){if(selected==null||v.getQuality()>selected.getQuality())selected=v;}
+                if(selected==null||tts.setVoice(selected)!=TextToSpeech.SUCCESS){ready=false;fail("日本語のオフライン音声がありません。システムの音声設定からダウンロードしてください。クラウド音声には切り替えません");return;}
                 tts.setSpeechRate(prefs.getFloat("tts_rate",1f));tts.setOnUtteranceProgressListener(new UtteranceProgressListener(){public void onStart(String id){}public void onDone(String id){MAIN.post(()->synthesized(id));}public void onError(String id){MAIN.post(()->{if(id.equals(activeId))fail("本机语音合成失败");});}});
-                ready=true;if(token==generation)pump();else if(!queue.isEmpty())pump();else mark("本机中文音色已就绪");
+                ready=true;if(token==generation)pump();else if(!queue.isEmpty())pump();else mark("日本語のオフライン音声を使用できます");
             }catch(RuntimeException e){ready=false;fail("本机语音初始化失败");}
         }));}catch(RuntimeException e){initializing=false;fail("系统语音服务不可用");}
     }
@@ -70,7 +70,7 @@ final class VoiceSpeech {
         if(activeFile.length()<44||activeFile.length()>8*1024*1024){fail("合成音频大小异常");return;}
         try{AudioDeviceInfo route=output();if(route==null&&!phoneAllowed()){fail("蓝牙音频已断开，未外放");return;}
             AudioAttributes attr=new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build();
-            focus=new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).setAudioAttributes(attr).setOnAudioFocusChangeListener(change->{if(change<0)MAIN.post(()->fail("音频焦点变化，停止朗读"));},MAIN).build();
+            focus=new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).setAudioAttributes(attr).setOnAudioFocusChangeListener(change->{if(change<0)MAIN.post(()->fail("音频焦点变化，読み上げを停止"));},MAIN).build();
             if(audio.requestAudioFocus(focus)!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED){fail("未获得音频焦点；后台时请回到 App 测试");return;}
             player=new MediaPlayer();MediaPlayer current=player;current.setAudioAttributes(attr);current.setDataSource(activeFile.getPath());
             if(route!=null&&!current.setPreferredDevice(route)&&!phoneAllowed()){fail("系统拒绝蓝牙路由选择，未播放");return;}
@@ -84,13 +84,13 @@ final class VoiceSpeech {
     private static void checkRoute(){if(player==null)return;AudioDeviceInfo d=player.getRoutedDevice();if(d==null)return;
         if(!phoneAllowed()&&!bluetooth(d)){fail("实际输出不是蓝牙耳机，已保持静音并停止");return;}player.setVolume(1,1);mark(bluetooth(d)?"正在通过蓝牙媒体设备播放":"正在通过系统媒体输出播放（已允许）");
     }
-    static void show(Activity a){EditorialUI.Screen screen=new EditorialUI.Screen(a,"回答同步朗读");LinearLayout b=screen.body;
-        b.addView(EditorialUI.text(a,"本机中文 TTS · 无需 Key",22,EditorialUI.INK));b.addView(EditorialUI.text(a,"只选择已安装的非联网音色。蓝牙连接不等于媒体音频已连接；实际输出以系统路由为准。不会开启麦克风或修改官方音频会话。",14,EditorialUI.MUTED));
-        EditorialUI.toggle(a,b,"回答同步朗读",enabled(),(v,on)->{prefs.edit().putBoolean("tts_enabled",on).apply();stop(on?"已启用；等待下一轮回答":"已关闭");});
-        EditorialUI.toggle(a,b,"允许手机/其他系统媒体输出（默认关闭）",phoneAllowed(),(v,on)->{prefs.edit().putBoolean("tts_phone",on).apply();stop("音频策略已修改");});
+    static void show(Activity a){EditorialUI.Screen screen=new EditorialUI.Screen(a,"回答の読み上げ");LinearLayout b=screen.body;
+        b.addView(EditorialUI.text(a,"端末内の日本語音声・キー不要",22,EditorialUI.INK));b.addView(EditorialUI.text(a,"インストール済みのオフライン音声だけを使います。Bluetooth の接続だけでは音声の出力先は確定しません。マイクや公式アプリの音声設定は変更しません。",14,EditorialUI.MUTED));
+        EditorialUI.toggle(a,b,"回答の読み上げ",enabled(),(v,on)->{prefs.edit().putBoolean("tts_enabled",on).apply();stop(on?"已启用；等待下一轮回答":"已关闭");});
+        EditorialUI.toggle(a,b,"スマートフォンなどへの音声出力を許可（初期状態は無効）",phoneAllowed(),(v,on)->{prefs.edit().putBoolean("tts_phone",on).apply();stop("音频策略已修改");});
         TextView state=EditorialUI.text(a,status,15,EditorialUI.LIME);b.addView(state);Runnable refresh=()->state.setText(status);listeners.add(refresh);screen.dialog.setOnDismissListener(d->listeners.remove(refresh));
-        EditorialUI.button(a,b,"播放测试语音",true,()->{stop("测试语音");append("Turbo IO 本机语音测试，校验七三九二。",false,true);});
-        EditorialUI.button(a,b,"停止朗读",false,()->stop("已手动停止"));
-        EditorialUI.button(a,b,"系统语音设置",false,()->{try{a.startActivity(new Intent("com.android.settings.TTS_SETTINGS"));}catch(RuntimeException e){EditorialUI.notice(a,"系统未提供语音设置入口，请在设置中搜索文字转语音。");}});
+        EditorialUI.button(a,b,"テスト音声を再生",true,()->{stop("テスト音声");append("Turbo IO の日本語音声テストです。",false,true);});
+        EditorialUI.button(a,b,"読み上げを停止",false,()->stop("已手动停止"));
+        EditorialUI.button(a,b,"システムの音声設定",false,()->{try{a.startActivity(new Intent("com.android.settings.TTS_SETTINGS"));}catch(RuntimeException e){EditorialUI.notice(a,"音声設定を開けませんでした。設定から「テキスト読み上げ」を探してください。");}});
     }
 }

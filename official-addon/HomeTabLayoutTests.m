@@ -12,11 +12,22 @@ int main(void){@autoreleasepool{
     assert([TIOHomeTabName(@"回忆\n标签页，第3项，共4项") isEqual:@"回忆"]);
     assert([TIOHomeTabName(@"探索，标签页") isEqual:@"探索"]);
     assert(!TIOHomeTabName(@"探索新功能"));assert(!TIOHomeTabName(@"回忆录"));
+    assert([TIOHomeTabName(@"グラス\nタブ、4項目中2番目") isEqual:@"グラス"]);
+    assert([TIOHomeTabName(@"メモリー") isEqual:@"メモリー"]);
+    assert([TIOHomeTabName(@"発見、タブ") isEqual:@"発見"]);
+    assert(!TIOHomeTabName(@"メモリーを開く"));assert(!TIOHomeTabName(@"新しい発見"));
     NSMutableArray *newTabs=[NSMutableArray new];
     NSArray *newNames=@[@"RayNeo",@"眼镜",@"回忆",@"探索"];
     for(NSUInteger i=0;i<4;i++){NSMutableDictionary *row=[good[i] mutableCopy];row[@"name"]=newNames[i];[newTabs addObject:row];}
     NSDictionary *newLayout=TIOHomeTabLayout(TIOHomeTabCandidates(newTabs),420,912,34);
     assert(newLayout);assert([[newLayout[@"items"] valueForKey:@"name"] isEqual:newNames]);
+    NSArray *japaneseNames=@[@"RayNeo",@"グラス",@"メモリー",@"発見"];
+    NSMutableArray *japaneseTabs=[NSMutableArray new];
+    for(NSUInteger i=0;i<4;i++){NSMutableDictionary *row=[good[i] mutableCopy];row[@"name"]=japaneseNames[i];[japaneseTabs addObject:row];}
+    NSDictionary *japaneseLayout=TIOHomeTabLayout(TIOHomeTabCandidates(japaneseTabs),420,912,34);
+    assert(japaneseLayout);assert([[japaneseLayout[@"items"] valueForKey:@"name"] isEqual:japaneseNames]);
+    NSMutableArray *mixedJapanese=[japaneseTabs mutableCopy];mixedJapanese[2]=good[2];
+    assert(!TIOHomeTabLayout(TIOHomeTabCandidates(mixedJapanese),420,912,34));
     NSMutableArray *mixed=[newTabs mutableCopy];mixed[3]=good[3];assert(!TIOHomeTabLayout(mixed,420,912,34));
     NSMutableArray *ambiguous=[newTabs mutableCopy];[ambiguous addObject:good[2]];
     assert(TIOHomeTabCandidates(ambiguous).count==3);

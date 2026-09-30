@@ -9,6 +9,7 @@ public final class ChatPolicyTest {
         check(!ChatPolicy.eligible("chat","chat","workflow",false,true));
         check(!ChatPolicy.eligible("chat","chat","unknown",false,false));
         check(ChatPolicy.endpoint("https://api.example.com/v1/chat/completions"));
+        check(ChatPolicy.endpoint("https://kairos.example.test/api/glasses/chat/completions"));
         check(!ChatPolicy.endpoint("http://api.example.com/chat/completions"));
         check(!ChatPolicy.endpoint("https://user:pass@api.example.com/chat/completions"));
         check(!ChatPolicy.endpoint("https://api.example.com/chat/completions?key=x"));

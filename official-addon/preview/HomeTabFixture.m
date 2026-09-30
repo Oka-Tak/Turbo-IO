@@ -26,7 +26,7 @@ extern UITabBarController *TIOCreateResearchPreview(void);
 @implementation FlutterViewController
 - (void)viewDidLoad{[super viewDidLoad];self.engine=[TIOPreviewFlutterEngine new];self.view.backgroundColor=UIColor.systemBackgroundColor;self.message=[[UILabel alloc]initWithFrame:CGRectMake(24,160,350,180)];self.message.text=@"底部导航桥接 · 合成验收\n\n不连接眼镜，不调用真实服务。";self.message.numberOfLines=0;self.message.font=[UIFont preferredFontForTextStyle:UIFontTextStyleTitle2];[self.view addSubview:self.message];}
 - (void)viewDidAppear:(BOOL)animated{[super viewDidAppear:animated];if(self.started)return;self.started=YES;
-    NSArray *names=[NSProcessInfo.processInfo.arguments containsObject:@"--home-app104"]?@[@"RayNeo",@"眼镜",@"回忆",@"探索"]:@[@"RayNeo",@"眼镜",@"记忆",@"发现"];NSMutableArray *nodes=[NSMutableArray new];CGFloat w=self.view.bounds.size.width,h=self.view.bounds.size.height,b=self.view.safeAreaInsets.bottom;
+    NSArray *names=[NSProcessInfo.processInfo.arguments containsObject:@"--home-ja"]?@[@"RayNeo",@"グラス",@"メモリー",@"発見"]:([NSProcessInfo.processInfo.arguments containsObject:@"--home-app104"]?@[@"RayNeo",@"眼镜",@"回忆",@"探索"]:@[@"RayNeo",@"眼镜",@"记忆",@"发现"]);NSMutableArray *nodes=[NSMutableArray new];CGFloat w=self.view.bounds.size.width,h=self.view.bounds.size.height,b=self.view.safeAreaInsets.bottom;
     if([NSProcessInfo.processInfo.arguments containsObject:@"--glass-sample"]){
         self.message.text=@"TurboIO\n毛玻璃底栏 · 合成预览\n\n背景含模拟官方四项底栏，用于检查透底重影。";
         self.view.backgroundColor=[UIColor colorWithDynamicProvider:^UIColor *(UITraitCollection *t){return t.userInterfaceStyle==UIUserInterfaceStyleDark?[UIColor colorWithRed:0.06 green:0.09 blue:0.08 alpha:1]:[UIColor colorWithRed:0.92 green:0.96 blue:0.94 alpha:1];}];
