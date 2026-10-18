@@ -239,11 +239,36 @@ static id CopyResponse(id source,NSString *answer,BOOL final) {
 }
 @end
 
+static BOOL OpenDotsShortcut(BOOL fromVoice) {
+    NSURL *url=TIODotsShortcutURL([Prefs stringForKey:@"dotsShortcutName"]);
+    if(!url){if(!fromVoice)Alert(@"ショートカットを設定してください",@"iPhone のショートカットで ChatGPT の「Open your dot」を追加し、Call モードで保存してください。次に、その名前を Turbo IO に設定します。");return NO;}
+#if TIO_UI_PREVIEW
+    Alert(@"画面プレビュー",@"実機では設定したショートカットを開きます。このプレビューでは ChatGPT やショートカットを起動しません。");
+    return YES;
+#else
+    // iOS will not reliably open another app from background ASR callbacks.
+    if(UIApplication.sharedApplication.applicationState!=UIApplicationStateActive)return NO;
+    // Voice handoff is offered only after the official microphone stop entry
+    // has been verified. A repeated final callback cannot start a second call.
+    if(fromVoice && (!VoiceExitReady || Controller.voiceExited))return NO;
+    if(VoiceExitReady){if(![Controller exitVoice]){if(!fromVoice)Alert(@"音声を停止できませんでした",@"公式アプリの音声操作を終了してから、もう一度 dot 通話を開いてください。");return NO;}}else [Controller cancel];
+    Diagnostic=@"dot 通話用ショートカットの起動を要求中";
+    [UIApplication.sharedApplication openURL:url options:@{} completionHandler:^(BOOL opened){
+        dispatch_async(dispatch_get_main_queue(),^{
+            Diagnostic=opened?@"ショートカットの起動を OS が受理。dot 通話・眼鏡の音声出力は実機で確認してください":@"ショートカットを開けませんでした";
+            if(!opened)Alert(@"起動できませんでした",@"iPhone のショートカットを開き、設定した名前のショートカットが単体で動くか確認してください。");
+        });
+    }];
+    return YES;
+#endif
+}
+
 static void AsrHook(id self,SEL cmd,id text,BOOL final,id sid) {
     NSString *copy=String(text),*session=String(sid);
     void (^work)(void)=^{
         if(final&&[Prefs boolForKey:@"voiceExitCommands"]&&TIOIsVoiceExitCommand(copy)&&[Controller exitVoice])return;
         if(Controller.voiceExited)return;
+        if(final&&[Prefs boolForKey:@"dotsVoiceShortcut"]&&TIOIsDotsShortcutCommand(copy)&&OpenDotsShortcut(YES))return;
         // The official app may reopen its microphone after the answer. Cancel
         // playback only when new recognized user speech arrives.
         if(copy.length&&[Prefs boolForKey:@"ttsEnabled"])[VoiceTTS cancel];
@@ -308,6 +333,9 @@ static void AlwaysOnHook(id self,SEL cmd,id value) {
     c.accessibilityIdentifier=[@"research-" stringByAppendingString:r[@"key"]];c.contentView.directionalLayoutMargins=NSDirectionalEdgeInsetsMake(15,16,15,16);
     if([r[@"key"] isEqual:@"agent"]){__weak typeof(self) weak=self;c.accessoryView=TIOAgentPicker(^{[weak.tableView reloadData];});c.detailTextLabel.text=[TIOSelectedAgent() isEqual:@"Codex"]?@"Mac・独自の知識ベース":@"実行機能は未接続";}
     if([r[@"key"] isEqual:@"knowledge"])c.detailTextLabel.text=@"アーカイブ・プロジェクト文書・学習資料";
+    if([r[@"key"] isEqual:@"dotsCall"])c.detailTextLabel.text=@"ChatGPT アプリで自分の dot を開きます。返答の文字を眼鏡に戻す機能はありません";
+    if([r[@"key"] isEqual:@"dotsSetup"])c.detailTextLabel.text=TIODotsShortcutName([Prefs stringForKey:@"dotsShortcutName"])?:@"未設定・ChatGPT の Open your dot / Call を使用";
+    if([r[@"key"] isEqual:@"dotsVoice"]){c.detailTextLabel.text=VoiceExitReady?@"公式アプリが前面のときだけ・短い発話の完全一致・初期状態は無効":@"音声終了処理を検証できないため、音声起動は無効です";UISwitch *s=[UISwitch new];s.on=[Prefs boolForKey:@"dotsVoiceShortcut"]&&VoiceExitReady;s.enabled=VoiceExitReady;[s addTarget:self action:@selector(dotsVoiceToggle:) forControlEvents:UIControlEventValueChanged];c.accessoryView=s;}
     if([r[@"key"] isEqual:@"tts"]){c.detailTextLabel.text=@"公式/独自モデルの回答・眼鏡のBluetooth音声";
         UISwitch *s=[UISwitch new];s.on=[Prefs boolForKey:@"ttsEnabled"];[s addTarget:self action:@selector(ttsToggle:) forControlEvents:UIControlEventValueChanged];c.accessoryView=s;}
     if([r[@"key"] isEqual:@"ttsEngine"])c.detailTextLabel.text=[[Prefs stringForKey:@"ttsEngine"] isEqual:@"local"]?@"iOS端末内の音声・キー不要・初期設定":@"Ali qwen-audio-3.1-tts-flash・クラウド";
@@ -346,6 +374,22 @@ static void AlwaysOnHook(id self,SEL cmd,id value) {
     return c;
 }
 - (void)thinking:(UISwitch *)sender {[Prefs setBool:sender.on forKey:@"deepseekDisableThinking"];}
+- (void)dotsVoiceToggle:(UISwitch *)sender {
+    if(sender.on&&!TIODotsShortcutURL([Prefs stringForKey:@"dotsShortcutName"])){sender.on=NO;Alert(@"先に設定してください",@"dot 通話のショートカット名を保存し、タップして単体で動くことを確認してください。");return;}
+    [Prefs setBool:sender.on forKey:@"dotsVoiceShortcut"];
+}
+- (void)configureDotsShortcut {
+    UIAlertController *a=[UIAlertController alertControllerWithTitle:@"ChatGPT dots の通話" message:@"iPhone のショートカットで ChatGPT の「Open your dot」を追加し、自分の dot と Call モードを選んで保存します。そのショートカット名を入力してください。dot にアクセスできる ChatGPT アカウントが必要です。通話の文字を眼鏡へ返す機能はありません。" preferredStyle:UIAlertControllerStyleAlert];
+    [a addTextFieldWithConfigurationHandler:^(UITextField *f){f.placeholder=@"例：RayNeoでdot通話";f.text=[Prefs stringForKey:@"dotsShortcutName"];f.autocapitalizationType=UITextAutocapitalizationTypeNone;f.autocorrectionType=UITextAutocorrectionTypeNo;}];
+    [a addAction:[UIAlertAction actionWithTitle:@"キャンセル" style:UIAlertActionStyleCancel handler:nil]];
+    [a addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(UIAlertAction *x){
+        NSString *name=TIODotsShortcutName(a.textFields.firstObject.text);
+        if(!name){Alert(@"保存できませんでした",@"1〜128文字のショートカット名を入力してください。改行や制御文字は使えません。");return;}
+        // Editing a name never runs it or silently enables voice launching.
+        [Prefs setObject:name forKey:@"dotsShortcutName"];[Prefs setBool:NO forKey:@"dotsVoiceShortcut"];[self.tableView reloadData];
+    }]];
+    [self presentViewController:a animated:YES completion:nil];
+}
 - (void)ttsToggle:(UISwitch *)sender {
     if(sender.on&&![[Prefs stringForKey:@"ttsEngine"] isEqual:@"local"]&&!ReadKey(TIOVoiceTTSService()).length){sender.on=NO;Alert(@"クラウド音声を設定してください",@"Ali Flash の利用には API キーが必要です。iPhone 内の読み上げには不要です。");return;}
     [Prefs setBool:sender.on forKey:@"ttsEnabled"];if(!sender.on)[VoiceTTS cancel];
@@ -417,6 +461,9 @@ static void AlwaysOnHook(id self,SEL cmd,id value) {
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)ip {
     NSDictionary *r=self.sections[ip.section][@"rows"][ip.row];[tableView deselectRowAtIndexPath:ip animated:YES];
     if([r[@"key"] isEqual:@"agent"])return;
+    if([r[@"key"] isEqual:@"dotsCall"]){OpenDotsShortcut(NO);return;}
+    if([r[@"key"] isEqual:@"dotsSetup"]){[self configureDotsShortcut];return;}
+    if([r[@"key"] isEqual:@"dotsVoice"])return;
 #if TIO_MUSIC
     if([r[@"key"] isEqual:@"music"]){[self.navigationController pushViewController:TMMusicController() animated:YES];return;}
 #endif

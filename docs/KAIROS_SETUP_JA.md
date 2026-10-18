@@ -1,5 +1,7 @@
 # RayNeo iO から Kairos に質問する
 
+ChatGPT 公式 dots の通話を開く場合は [dots 用の iOS 設定](CHATGPT_DOTS_IOS_JA.md)を参照する。
+
 この構成では、眼鏡の音声認識で得た質問を Turbo IO が Kairos へ送り、回答を眼鏡に表示する。
 Turbo IO の iOS 版と Android 版は、同じ OpenAI Chat Completions 形式の接続先を使う。
 Kairos の予定やタスクの変更は行わない。

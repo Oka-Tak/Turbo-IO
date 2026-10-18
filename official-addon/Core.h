@@ -16,6 +16,10 @@ FOUNDATION_EXPORT BOOL TIOIsEligibleChat(NSString *domain, NSString *intent, NSS
 // Empty previous output is valid: NSString hasPrefix:@"" returns NO.
 FOUNDATION_EXPORT NSString * _Nullable TIOAppendDelta(NSString *previous, NSString *current);
 FOUNDATION_EXPORT BOOL TIOIsVoiceExitCommand(NSString *text);
+// Launches a user-created Apple shortcut; no ChatGPT session or API credentials.
+FOUNDATION_EXPORT NSString * _Nullable TIODotsShortcutName(NSString * _Nullable input);
+FOUNDATION_EXPORT NSURL * _Nullable TIODotsShortcutURL(NSString * _Nullable name);
+FOUNDATION_EXPORT BOOL TIOIsDotsShortcutCommand(NSString *text);
 
 // Response EOF alone never closes a window. A separately observed waiting
 // transition arms this gate. Tokens invalidate stale timers/results on speech.

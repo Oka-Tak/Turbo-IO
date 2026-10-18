@@ -36,6 +36,32 @@ NSString *TIOAppendDelta(NSString *previous, NSString *current) {
     return [current substringFromIndex:previous.length];
 }
 
+NSString *TIODotsShortcutName(NSString *input) {
+    if(![input isKindOfClass:NSString.class] || input.length>256 ||
+       [input rangeOfCharacterFromSet:NSCharacterSet.controlCharacterSet].location!=NSNotFound)return nil;
+    NSString *name=[input stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    if(!name.length || name.length>128 || ![name dataUsingEncoding:NSUTF8StringEncoding])return nil;
+    return [name copy];
+}
+
+NSURL *TIODotsShortcutURL(NSString *input) {
+    NSString *name=TIODotsShortcutName(input);if(!name)return nil;
+    NSCharacterSet *unreserved=[NSCharacterSet characterSetWithCharactersInString:@"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"];
+    NSString *encoded=[name stringByAddingPercentEncodingWithAllowedCharacters:unreserved];
+    if(!encoded.length)return nil;
+    // Only the shortcut's name is passed. Never copy the user's speech,
+    // clipboard, conversation history, or credentials into another app's URL.
+    return [NSURL URLWithString:[@"shortcuts://run-shortcut?name=" stringByAppendingString:encoded]];
+}
+
+BOOL TIOIsDotsShortcutCommand(NSString *text) {
+    if(![text isKindOfClass:NSString.class] || !text.length || text.length>64)return NO;
+    NSMutableCharacterSet *trim=[NSCharacterSet.whitespaceAndNewlineCharacterSet mutableCopy];
+    [trim addCharactersInString:@"，。！？,.!?、"];
+    NSString *s=[[text stringByTrimmingCharactersInSet:trim] lowercaseString];
+    return [@[@"ドットにつないで",@"ドットと通話",@"ドットと話す",@"chatgptのドットにつないで",@"chatgptのdotにつないで",@"dotにつないで",@"dotsにつないで"] containsObject:s];
+}
+
 BOOL TIOIsEligibleChat(NSString *domain, NSString *intent, NSString *sub, BOOL offline, BOOL hasCommand) {
     return [domain isEqual:@"chat"] && [intent isEqual:@"chat"] &&
         [sub isEqual:@"workflow"] && !offline && !hasCommand;

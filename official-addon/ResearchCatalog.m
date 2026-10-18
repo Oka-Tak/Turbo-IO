@@ -3,6 +3,7 @@ static NSDictionary *Row(NSString *key,NSString *title,NSString *icon,NSInteger 
 NSArray<NSDictionary *> *TIOResearchSections(NSString *page){
     if([page isEqual:@"model"])return @[
         @{@"title":@"エージェント",@"rows":@[Row(@"agent",@"実行エージェント",@"cpu",-2,0),Row(@"knowledge",@"知識ベースと参照元",@"books.vertical",-2,1)]},
+        @{@"title":@"ChatGPT dots",@"rows":@[Row(@"dotsCall",@"自分の dot との通話を開く",@"phone.arrow.up.right",-2,22),Row(@"dotsSetup",@"dot 通話のショートカットを設定",@"link",-2,23),Row(@"dotsVoice",@"「ドットにつないで」で開く",@"waveform",-2,24)]},
         @{@"title":@"回答方法",@"rows":@[Row(@"mode",@"現在の回答方法",@"square.stack.3d.up",0,0)]},
         @{@"title":@"独自モデル",@"rows":@[Row(@"api",@"APIとキー",@"cube",0,1),Row(@"thinking",@"深い推論を無効化",@"bolt",0,3)]},
         @{@"title":@"検索とツール",@"rows":@[Row(@"search",@"ウェブ検索を許可",@"globe",0,7),Row(@"searchKey",@"検索サービスの設定",@"key",0,8),Row(@"tools",@"モデルが使えるツール",@"wrench.and.screwdriver",0,11)]},
